@@ -180,6 +180,8 @@ def parse_gff(fpath):
     Parses gff file
     """
     features = {}
+    DNA_CHAR_SET = {'a', 'c', 'g', 't'}
+    fasta_seqs = {}
 
     with open(fpath, "r") as target:
         for line in target:
@@ -192,11 +194,11 @@ def parse_gff(fpath):
 
             if line[0].startswith(">"):
                 fasta_id = line[0][1:]
-                for line in target:
-                    if re.search:
-                        pass
+                fasta_seqs[fasta_id] = ""
+            elif all([item in DNA_CHAR_SET for item in set(line[0])]):
+                fasta_seqs[fasta_id] = fasta_seqs[fasta_id]+line[0]
 
-            if line[0].startswith("#"): # Ignore these lines for now
+            elif line[0].startswith("#"): # Ignore these lines for now
                 continue
             else:
                 seqid, source, gff_type, start, end, score, strand, phase, attributes = line
