@@ -1,2 +1,2 @@
 # gff_parser
-Gff parser
+Gff3 parser

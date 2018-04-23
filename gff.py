@@ -1,12 +1,15 @@
-from Bio.SeqFeature import FeatureLocation
-import csv
-import re
+"""
+Parser module for gff3 files (dev)
+"""
 
-strand_translation = {"+": +1, "-":-1, ".": None}
+import re
+from Bio.SeqFeature import FeatureLocation
+
+STRAND_TRANSLATION = {"+": +1, "-":-1, ".": None}
 
 def strandtranslate(gffStrand):
     """Uses dictionary defined in class to translate gff strand notation to biopython strand notation """
-    biopython_strand = strand_translation[gffStrand]
+    biopython_strand = STRAND_TRANSLATION[gffStrand]
     return biopython_strand
 
 
@@ -23,7 +26,7 @@ class GffFeature:
     def __init__(self, location, gff_type, attributes):
         assert isinstance(location, FeatureLocation), type(location)
         self.attributes = attributes
-        self.id = self.attributes.pop("ID", None)
+        self.gff_id = self.attributes.pop("ID", None)
         self.location = location
         self.gff_type = str(gff_type)
 
@@ -143,15 +146,16 @@ class Exon(GffSub):
 
     def __init__(self, location, gff_type, parent, attributes):
         super().__init__(location, gff_type, attributes)
-        self.exon_number = self.get_exon_index(self.id)
+        self.exon_number = self.get_exon_index(self.gff_id)
 
-        assert isinstance(parent, (tRNA, rRNA, mRNA)), "Exon %s must have parent RNA your parent for this exon is %s" % (self.id, type(parent))
+        assert isinstance(parent, (tRNA, rRNA, mRNA)), "Exon %s must have parent RNA your parent for this exon is %s" % (self.gff_id, type(parent))
         self.parent = parent
 
     def __repr__(arg):
         return super().__repr__() + "something about exons"
 
     def get_exon_index(self, arg):
+        """extracts exon id """
         exon_reg = re.search("[0-9]+$", arg)
         if not exon_reg:
             raise ValueError("Exons must have integer ID at the end")
@@ -164,7 +168,7 @@ class Cds(GffSub):
     """
     def __init__(self, location, gff_type, parent, attributes):
         super().__init__(location, gff_type, attributes)
-        assert isinstance(parent, (Gene, mRNA) ), "CDS %s must have parent gene or mRNA your parent for this cds with ID %s is %s" % (self.id, parent.id, type(parent))
+        assert isinstance(parent,(Gene, mRNA)), "CDS %s must have parent gene or mRNA your parent for this cds with ID %s is %s" % (self.gff_id, parent.gff_id, type(parent))
         self.parent = parent
 
     def __repr__(arg):
@@ -184,7 +188,7 @@ def parse_gff(fpath):
             else:
                 delim = None
 
-            line = line.strip().split(sep = delim, maxsplit = 9)
+            line = line.strip().split(sep=delim, maxsplit=9)
 
             if line[0].startswith(">"):
                 fasta_id = line[0][1:]
@@ -197,7 +201,7 @@ def parse_gff(fpath):
             else:
                 seqid, source, gff_type, start, end, score, strand, phase, attributes = line
 
-                attributes = {k:v for k,v in[(att.split("=")) for att in attributes.split(";")]}
+                attributes = {k:v for k, v in[(att.split("=")) for att in attributes.split(";")]}
 
                 location = FeatureLocation(int(start), int(end), strandtranslate(strand))
                 parent = attributes.pop("Parent", None)
@@ -210,29 +214,30 @@ def parse_gff(fpath):
 
                     if gff_type == "mRNA":
                         gff_record = mRNA(location, gff_type, parent, attributes)
-                        features[parent.id].add_mrna(gff_record)
+                        features[parent.gff_id].add_mrna(gff_record)
 
                     if gff_type == "tRNA":
                         gff_record = tRNA(location, gff_type, parent, attributes)
-                        # features[parent.id].add_rna(gff_record)
+                        # features[parent.gff_id].add_rna(gff_record)
 
                     if gff_type == "rRNA":
                         gff_record = rRNA(location, gff_type, parent, attributes)
-                        features[parent.id].add_rrna(gff_record)
+                        features[parent.gff_id].add_rrna(gff_record)
 
                     if gff_type == "exon":
                         gff_record = Exon(location, gff_type, parent, attributes)
-                        features[parent.id].add_exon(gff_record)
+                        features[parent.gff_id].add_exon(gff_record)
 
                     if gff_type == "CDS":
                         gff_record = Cds(location, gff_type, parent, attributes)
-                        features[parent.id].add_cds(gff_record)
+                        features[parent.gff_id].add_cds(gff_record)
                 else:
                     continue
                 # records.append(gff_record)
-                # assert gff_record.id not in features, print(gff_record) # TODO DO not understand this assert
-                features[gff_record.id] = gff_record
+                # assert gff_record.gff_id not in features, print(gff_record)
+                # TODO DO not understand this assert
+                features[gff_record.gff_id] = gff_record
 
-        return(features)
+        return features
 
 # gf = parse_gff("GCF_000149205.2_ASM14920v2_genomic.gff")
